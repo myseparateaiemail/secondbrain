@@ -241,6 +241,11 @@
       background: var(--border);
       color: var(--text);
     }
+    .badge-notebook {
+      background: #2d1f5e;
+      color: #b39ddb;
+      border: 1px solid #4a3580;
+    }
 
     .receipt-thumbnail {
       width: 100%;
@@ -770,6 +775,7 @@
             <span class="badge badge-type-${item.type}">${item.type}</span>
             ${item.tier ? `<span class="badge badge-tier-${item.tier}">${item.tier.replace('_', ' ')}</span>` : ''}
             <span class="badge badge-category">${emoji} ${item.category.replace('_', ' ')}</span>
+            ${item.notebook ? `<span class="badge badge-notebook">\u{1f4d3} ${item.notebook}</span>` : ''}
           </div>
           <div class="receipt-actions">
             <button class="receipt-action-btn" onclick="openFixModal('${item.id}', 'category')">Fix Category</button>
@@ -967,7 +973,7 @@
           ${imgSrc ? `<img class="library-card-img" src="${imgSrc}" alt="" loading="lazy">` : `<div class="library-card-img" style="display:flex;align-items:center;justify-content:center;font-size:28px">${emoji}</div>`}
           <div class="library-card-body">
             <div class="library-card-name">${item.name}</div>
-            <div class="library-card-cat">${emoji} ${item.category.replace('_', ' ')}</div>
+            <div class="library-card-cat">${emoji} ${item.category.replace('_', ' ')}${item.notebook ? ` · \u{1f4d3} ${item.notebook}` : ''}</div>
           </div>
         </div>`;
       }).join('');
@@ -1029,6 +1035,7 @@
           <div class="receipt-badges">
             ${item.tier ? `<span class="badge badge-tier-${item.tier}">${item.tier.replace('_', ' ')}</span>` : ''}
             <span class="badge badge-category">${emoji} ${item.category.replace('_', ' ')}</span>
+            ${item.notebook ? `<span class="badge badge-notebook">\u{1f4d3} ${item.notebook}</span>` : ''}
             ${item.frequency !== 'ONE_TIME' ? `<span class="badge" style="background:var(--border)">${item.frequency}</span>` : ''}
           </div>
           ${item.notes ? `<div class="receipt-notes">${item.notes}</div>` : ''}
