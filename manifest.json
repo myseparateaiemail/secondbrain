@@ -1,0 +1,38 @@
+{
+  "name": "Second Brain",
+  "short_name": "Brain",
+  "description": "Marta's Life Command Centre - Capture, classify, and organize everything",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "name",
+      "text": "raw_text",
+      "url": "url",
+      "files": [
+        {
+          "name": "image",
+          "accept": ["image/png", "image/jpeg", "image/gif", "image/webp"]
+        }
+      ]
+    }
+  }
+}

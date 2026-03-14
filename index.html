@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Second Brain</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --surface-hover: #1a2744;
+      --border: #2a3a5c;
+      --text: #e8e8e8;
+      --text-dim: #8892a4;
+      --accent: #4fc3f7;
+      --accent-dim: #2a7fb5;
+      --survival: #ef5350;
+      --wellbeing: #ffb74d;
+      --growth: #66bb6a;
+      --task-badge: #4fc3f7;
+      --ref-badge: #ab47bc;
+      --dream-badge: #ff8a65;
+      --success: #66bb6a;
+      --warning: #ffb74d;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ============ HEADER ============ */
+    header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+    header .status {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* ============ TABS ============ */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 8px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ============ MAIN CONTENT ============ */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      padding-bottom: 160px; /* space for capture bar */
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ============ CAPTURE BAR ============ */
+    .capture-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+    .capture-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .capture-input {
+      flex: 1;
+      min-height: 44px;
+      max-height: 120px;
+      padding: 10px 14px;
+      font-size: 16px; /* prevents iOS zoom */
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      resize: none;
+      outline: none;
+      font-family: inherit;
+      line-height: 1.4;
+    }
+    .capture-input:focus {
+      border-color: var(--accent);
+    }
+    .capture-input::placeholder {
+      color: var(--text-dim);
+    }
+    .capture-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: var(--bg);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: opacity 0.2s;
+    }
+    .capture-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .capture-btn.sending {
+      animation: pulse 1s infinite;
+    }
+    .image-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-dim);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .image-btn:hover { border-color: var(--accent); color: var(--accent); }
+    #image-input { display: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* ============ RECEIPT CARDS ============ */
+    .receipt {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 10px;
+      transition: border-color 0.2s;
+    }
+    .receipt.new {
+      border-color: var(--accent);
+      animation: fadeIn 0.3s ease-out;
+    }
+    .receipt.bounce {
+      border-color: var(--warning);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .receipt-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .receipt-name {
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.3;
+      flex: 1;
+    }
+    .receipt-confidence {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .receipt-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-type-TASK { background: var(--task-badge); color: var(--bg); }
+    .badge-type-REFERENCE { background: var(--ref-badge); color: white; }
+    .badge-type-DREAM { background: var(--dream-badge); color: var(--bg); }
+    .badge-tier-SURVIVAL { background: var(--survival); color: white; }
+    .badge-tier-CORE_WELLBEING { background: var(--wellbeing); color: var(--bg); }
+    .badge-tier-GROWTH { background: var(--growth); color: var(--bg); }
+    .badge-category {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .receipt-thumbnail {
+      width: 100%;
+      max-height: 160px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .receipt-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .receipt-action-btn {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+    .receipt-action-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .receipt-notes {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    /* ============ BOUNCE CARD ============ */
+    .bounce-message {
+      font-size: 13px;
+      color: var(--warning);
+      margin-bottom: 8px;
+    }
+    .bounce-input-row {
+      display: flex;
+      gap: 6px;
+    }
+    .bounce-input {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      font-family: inherit;
+    }
+    .bounce-submit {
+      padding: 8px 14px;
+      font-size: 13px;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* ============ FIX MODAL ============ */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--surface);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 20px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .modal h3 { font-size: 16px; margin-bottom: 16px; }
+    .modal-options {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .modal-option {
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .modal-option:hover { border-color: var(--accent); }
+    .modal-option.selected { border-color: var(--accent); background: var(--surface-hover); }
+    .modal-close {
+      margin-top: 12px;
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    /* ============ LIBRARY TAB ============ */
+    .library-search {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 15px;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      outline: none;
+      margin-bottom: 12px;
+      font-family: inherit;
+    }
+    .library-search:focus { border-color: var(--accent); }
+
+    .library-filters {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+    .filter-chip {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .filter-chip.active {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+
+    .library-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+    .library-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .library-card-img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      background: var(--bg);
+    }
+    .library-card-body {
+      padding: 10px;
+    }
+    .library-card-name {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.3;
+      margin-bottom: 4px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .library-card-cat {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* ============ EMPTY STATES ============ */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-dim);
+    }
+    .empty-state-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+    .empty-state-text {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ============ IMAGE PREVIEW ============ */
+    .image-preview {
+      display: none;
+      margin-bottom: 8px;
+      position: relative;
+    }
+    .image-preview.active { display: block; }
+    .image-preview img {
+      max-height: 80px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .image-preview-remove {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--survival);
+      color: white;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ============ TOAST ============ */
+    .toast {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: var(--success);
+      color: var(--bg);
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 200;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Second Brain</h1>
+    <span class="status" id="connection-status">Connecting...</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="capture">Capture</button>
+    <button class="tab" data-tab="library">Library</button>
+    <button class="tab" data-tab="tasks">Tasks</button>
+  </div>
+
+  <main>
+    <!-- CAPTURE TAB -->
+    <div class="tab-content active" id="tab-capture">
+      <div id="pending-section" style="display:none">
+        <h3 style="font-size:14px; color:var(--warning); margin-bottom:10px">Needs Your Input</h3>
+        <div id="pending-list"></div>
+      </div>
+      <div id="receipt-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">&#x1f9e0;</div>
+          <div class="empty-state-text">
+            Your Second Brain is ready.<br>
+            Speak or type your first thought below.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIBRARY TAB -->
+    <div class="tab-content" id="tab-library">
+      <input type="text" class="library-search" id="library-search" placeholder="Search saved links, screenshots...">
+      <div class="library-filters" id="library-filters"></div>
+      <div class="library-grid" id="library-grid">
+        <div class="empty-state">
+          <div class="empty-state-icon">&#x1f4da;</div>
+          <div class="empty-state-text">
+            Saved links, videos, and screenshots<br>will appear here.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TASKS TAB -->
+    <div class="tab-content" id="tab-tasks">
+      <div class="library-filters" id="task-filters"></div>
+      <div id="task-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">&#x2705;</div>
+          <div class="empty-state-text">
+            Your classified tasks will appear here,<br>filterable by category and tier.
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- CAPTURE BAR (fixed bottom) -->
+  <div class="capture-bar">
+    <div class="image-preview" id="image-preview">
+      <img id="image-preview-img" src="" alt="Preview">
+      <button class="image-preview-remove" id="image-preview-remove">&times;</button>
+    </div>
+    <div class="capture-input-row">
+      <button class="image-btn" id="image-btn" title="Attach screenshot">&#x1f4f7;</button>
+      <textarea class="capture-input" id="capture-input" placeholder="Speak, type, or paste a link..." rows="1"></textarea>
+      <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp">
+      <button class="capture-btn" id="capture-btn" title="Send">&#x2191;</button>
+    </div>
+  </div>
+
+  <!-- FIX MODAL -->
+  <div class="modal-overlay" id="fix-modal">
+    <div class="modal">
+      <h3 id="fix-modal-title">Fix Classification</h3>
+      <div class="modal-options" id="fix-modal-options"></div>
+      <button class="modal-close" id="fix-modal-close">Cancel</button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ============ CONFIG ============
+    // These will be set by the user after deployment
+    const CONFIG = {
+      SUPABASE_URL: 'https://xvpoksvveznvpkntfuls.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2cG9rc3Z2ZXpudnBrbnRmdWxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0Mjk0NzIsImV4cCI6MjA4OTAwNTQ3Mn0.l_Rv-p9h9eL0nYhqfJazVnWouBDWtR_AkY94wua0ppU',
+      CAPTURE_API_KEY: 'marta-second-brain-2026', // A custom password you make up — must match what's in Supabase secrets
+    };
+
+    const EDGE_FN_URL = `${CONFIG.SUPABASE_URL}/functions/v1`;
+
+    // Category emoji map
+    const CATEGORY_EMOJI = {
+      HOME: '\u{1f3e0}', FINANCES: '\u{1f4b0}', CAREGIVING: '\u{1f49c}',
+      HEALTH: '\u{1f4aa}', LEARNING: '\u{1f4da}', SOCIAL: '\u{1f465}',
+      POSHMARK: '\u{1f6cd}\u{fe0f}', PLAY: '\u{1f3ae}', CREATIVE: '\u{1f3a8}',
+      PARKING_LOT: '\u{1f17f}\u{fe0f}',
+    };
+
+    const CATEGORIES = Object.keys(CATEGORY_EMOJI);
+    const TIERS = ['SURVIVAL', 'CORE_WELLBEING', 'GROWTH'];
+    const TYPES = ['TASK', 'REFERENCE', 'DREAM'];
+
+    // ============ STATE ============
+    let receipts = [];
+    let pendingCaptures = [];
+    let libraryItems = [];
+    let taskItems = [];
+    let selectedImage = null;
+    let activeLibraryFilter = 'ALL';
+    let activeTaskFilter = 'ALL';
+
+    // ============ DOM REFS ============
+    const captureInput = document.getElementById('capture-input');
+    const captureBtn = document.getElementById('capture-btn');
+    const imageBtn = document.getElementById('image-btn');
+    const imageInput = document.getElementById('image-input');
+    const imagePreview = document.getElementById('image-preview');
+    const imagePreviewImg = document.getElementById('image-preview-img');
+    const imagePreviewRemove = document.getElementById('image-preview-remove');
+    const receiptList = document.getElementById('receipt-list');
+    const pendingSection = document.getElementById('pending-section');
+    const pendingList = document.getElementById('pending-list');
+    const librarySearch = document.getElementById('library-search');
+    const libraryGrid = document.getElementById('library-grid');
+    const libraryFilters = document.getElementById('library-filters');
+    const taskList = document.getElementById('task-list');
+    const taskFilters = document.getElementById('task-filters');
+    const fixModal = document.getElementById('fix-modal');
+    const fixModalOptions = document.getElementById('fix-modal-options');
+    const fixModalClose = document.getElementById('fix-modal-close');
+    const fixModalTitle = document.getElementById('fix-modal-title');
+    const toast = document.getElementById('toast');
+    const statusEl = document.getElementById('connection-status');
+
+    // ============ TABS ============
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+        if (tab.dataset.tab === 'library') loadLibrary();
+        if (tab.dataset.tab === 'tasks') loadTasks();
+      });
+    });
+
+    // ============ AUTO-RESIZE TEXTAREA ============
+    captureInput.addEventListener('input', () => {
+      captureInput.style.height = 'auto';
+      captureInput.style.height = Math.min(captureInput.scrollHeight, 120) + 'px';
+    });
+
+    // ============ IMAGE HANDLING ============
+    imageBtn.addEventListener('click', () => imageInput.click());
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      selectedImage = file;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        imagePreviewImg.src = ev.target.result;
+        imagePreview.classList.add('active');
+      };
+      reader.readAsDataURL(file);
+    });
+    imagePreviewRemove.addEventListener('click', () => {
+      selectedImage = null;
+      imageInput.value = '';
+      imagePreview.classList.remove('active');
+    });
+
+    // ============ CAPTURE (SEND) ============
+    captureBtn.addEventListener('click', sendCapture);
+    captureInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendCapture();
+      }
+    });
+
+    async function sendCapture() {
+      const text = captureInput.value.trim();
+      if (!text && !selectedImage) return;
+      if (!CONFIG.CAPTURE_API_KEY) {
+        showToast('Set CAPTURE_API_KEY in config first');
+        return;
+      }
+
+      captureBtn.disabled = true;
+      captureBtn.classList.add('sending');
+
+      try {
+        let response;
+        if (selectedImage) {
+          const formData = new FormData();
+          formData.append('raw_text', text);
+          formData.append('source', 'pwa');
+          formData.append('image', selectedImage);
+          response = await fetch(`${EDGE_FN_URL}/process-capture`, {
+            method: 'POST',
+            headers: { 'x-api-key': CONFIG.CAPTURE_API_KEY },
+            body: formData,
+          });
+        } else {
+          response = await fetch(`${EDGE_FN_URL}/process-capture`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': CONFIG.CAPTURE_API_KEY,
+            },
+            body: JSON.stringify({ raw_text: text, source: 'pwa' }),
+          });
+        }
+
+        const data = await response.json();
+
+        if (data.status === 'filed') {
+          receipts.unshift(data.item);
+          renderReceipts();
+          showToast(`Filed: ${data.item.name}`);
+        } else if (data.status === 'needs_clarification') {
+          pendingCaptures.unshift(data);
+          renderPending();
+          showToast('Needs your input');
+        } else if (data.status === 'error' || data.error) {
+          showToast(`Error: ${data.error || 'Unknown error'}`);
+          console.error('Server error:', data);
+        }
+
+        // Clear input
+        captureInput.value = '';
+        captureInput.style.height = 'auto';
+        selectedImage = null;
+        imageInput.value = '';
+        imagePreview.classList.remove('active');
+      } catch (err) {
+        showToast('Failed to send. Check connection.');
+        console.error(err);
+      } finally {
+        captureBtn.disabled = false;
+        captureBtn.classList.remove('sending');
+      }
+    }
+
+    // ============ RENDER RECEIPTS ============
+    function renderReceipts() {
+      if (receipts.length === 0) {
+        receiptList.innerHTML = `<div class="empty-state">
+          <div class="empty-state-icon">&#x1f9e0;</div>
+          <div class="empty-state-text">Your Second Brain is ready.<br>Speak or type your first thought below.</div>
+        </div>`;
+        return;
+      }
+
+      receiptList.innerHTML = receipts.map((item, i) => {
+        const isNew = i === 0;
+        const emoji = CATEGORY_EMOJI[item.category] || '';
+        return `<div class="receipt ${isNew ? 'new' : ''}">
+          <div class="receipt-header">
+            <span class="receipt-name">${item.name}</span>
+            <span class="receipt-confidence">${Math.round((item.confidence || 0) * 100)}%</span>
+          </div>
+          ${item.thumbnail_url ? `<img class="receipt-thumbnail" src="${item.thumbnail_url}" alt="">` : ''}
+          <div class="receipt-badges">
+            <span class="badge badge-type-${item.type}">${item.type}</span>
+            ${item.tier ? `<span class="badge badge-tier-${item.tier}">${item.tier.replace('_', ' ')}</span>` : ''}
+            <span class="badge badge-category">${emoji} ${item.category.replace('_', ' ')}</span>
+          </div>
+          <div class="receipt-actions">
+            <button class="receipt-action-btn" onclick="openFixModal('${item.id}', 'category')">Fix Category</button>
+            <button class="receipt-action-btn" onclick="openFixModal('${item.id}', 'tier')">Fix Tier</button>
+            <button class="receipt-action-btn" onclick="openFixModal('${item.id}', 'type')">Fix Type</button>
+            ${item.type === 'TASK' ? `<button class="receipt-action-btn" onclick="completeItem('${item.id}')" style="color:var(--success);border-color:var(--success)">Done</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ============ RENDER PENDING (BOUNCED) ============
+    function renderPending() {
+      if (pendingCaptures.length === 0) {
+        pendingSection.style.display = 'none';
+        return;
+      }
+      pendingSection.style.display = 'block';
+      pendingList.innerHTML = pendingCaptures.map(p => `
+        <div class="receipt bounce">
+          <div class="receipt-name" style="margin-bottom:6px">${p.raw_text}</div>
+          <div class="bounce-message">${p.message}</div>
+          <div class="bounce-input-row">
+            <input class="bounce-input" id="clarify-${p.capture_id}" placeholder="Add context to help classify...">
+            <button class="bounce-submit" onclick="resolvePending('${p.capture_id}')">Clarify</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ============ RESOLVE PENDING ============
+    async function resolvePending(captureId) {
+      const input = document.getElementById(`clarify-${captureId}`);
+      const text = input?.value?.trim();
+      if (!text) return;
+
+      try {
+        const response = await fetch(`${EDGE_FN_URL}/resolve-pending`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ capture_id: captureId, clarification_text: text }),
+        });
+        const data = await response.json();
+
+        if (data.status === 'filed') {
+          pendingCaptures = pendingCaptures.filter(p => p.capture_id !== captureId);
+          receipts.unshift(data.item);
+          renderPending();
+          renderReceipts();
+          showToast(`Filed: ${data.item.name}`);
+        } else if (data.status === 'still_unclear') {
+          showToast(data.message || 'Still unclear - try more detail');
+        } else if (data.status === 'error' || data.error) {
+          showToast(`Error: ${data.error || 'Unknown error'}`);
+          console.error('Resolve error:', data);
+        }
+      } catch (err) {
+        showToast('Failed to resolve. Check connection.');
+        console.error(err);
+      }
+    }
+
+    // ============ FIX MODAL ============
+    let fixTarget = { itemId: null, field: null };
+
+    function openFixModal(itemId, field) {
+      fixTarget = { itemId, field };
+      fixModalTitle.textContent = `Fix ${field.charAt(0).toUpperCase() + field.slice(1)}`;
+
+      const options = field === 'category' ? CATEGORIES :
+                      field === 'tier' ? [...TIERS, 'None (clear tier)'] :
+                      TYPES;
+
+      fixModalOptions.innerHTML = options.map(opt => {
+        const value = opt === 'None (clear tier)' ? null : opt;
+        const emoji = field === 'category' ? (CATEGORY_EMOJI[opt] || '') + ' ' : '';
+        return `<button class="modal-option" onclick="applyFix(${value === null ? 'null' : `'${value}'`})">${emoji}${opt.replace('_', ' ')}</button>`;
+      }).join('');
+
+      fixModal.classList.add('active');
+    }
+
+    fixModalClose.addEventListener('click', () => fixModal.classList.remove('active'));
+    fixModal.addEventListener('click', (e) => {
+      if (e.target === fixModal) fixModal.classList.remove('active');
+    });
+
+    async function applyFix(newValue) {
+      fixModal.classList.remove('active');
+      try {
+        const response = await fetch(`${EDGE_FN_URL}/fix-item`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            item_id: fixTarget.itemId,
+            field: fixTarget.field,
+            new_value: newValue,
+          }),
+        });
+        const data = await response.json();
+        if (data.status === 'fixed') {
+          // Update local receipt
+          const idx = receipts.findIndex(r => r.id === fixTarget.itemId);
+          if (idx >= 0) {
+            receipts[idx] = { ...receipts[idx], ...data.item };
+            renderReceipts();
+          }
+          showToast(`Fixed: ${fixTarget.field} changed`);
+        }
+      } catch (err) {
+        showToast('Fix failed');
+      }
+    }
+
+    // ============ COMPLETE ITEM ============
+    async function completeItem(itemId) {
+      try {
+        const response = await fetch(`${EDGE_FN_URL}/complete-item`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ item_id: itemId, new_status: 'COMPLETE' }),
+        });
+        const data = await response.json();
+        if (data.status === 'updated') {
+          receipts = receipts.filter(r => r.id !== itemId);
+          renderReceipts();
+          showToast('Completed! Added to Pride Archive.');
+        }
+      } catch (err) {
+        showToast('Failed to complete');
+      }
+    }
+
+    // ============ LOAD LIBRARY (REFERENCES) ============
+    async function loadLibrary() {
+      try {
+        let query = `${CONFIG.SUPABASE_URL}/rest/v1/items?type=eq.REFERENCE&status=eq.ACTIVE&order=created_at.desc&limit=50`;
+        if (activeLibraryFilter !== 'ALL') {
+          query += `&category=eq.${activeLibraryFilter}`;
+        }
+        const searchTerm = librarySearch.value.trim();
+        if (searchTerm) {
+          query += `&or=(name.ilike.*${searchTerm}*,notes.ilike.*${searchTerm}*,image_description.ilike.*${searchTerm}*)`;
+        }
+
+        const response = await fetch(query, {
+          headers: {
+            'apikey': CONFIG.SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+          },
+        });
+        libraryItems = await response.json();
+        renderLibrary();
+      } catch (err) {
+        console.error('Library load error:', err);
+      }
+    }
+
+    function renderLibraryFilters() {
+      const filters = ['ALL', ...CATEGORIES];
+      libraryFilters.innerHTML = filters.map(f => {
+        const emoji = f === 'ALL' ? '' : (CATEGORY_EMOJI[f] || '') + ' ';
+        return `<button class="filter-chip ${activeLibraryFilter === f ? 'active' : ''}" onclick="setLibraryFilter('${f}')">${emoji}${f === 'ALL' ? 'All' : f.replace('_', ' ')}</button>`;
+      }).join('');
+    }
+
+    function setLibraryFilter(filter) {
+      activeLibraryFilter = filter;
+      renderLibraryFilters();
+      loadLibrary();
+    }
+
+    function renderLibrary() {
+      if (libraryItems.length === 0) {
+        libraryGrid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+          <div class="empty-state-icon">&#x1f4da;</div>
+          <div class="empty-state-text">No saved references yet.<br>Paste a link or upload a screenshot to get started.</div>
+        </div>`;
+        return;
+      }
+
+      libraryGrid.innerHTML = libraryItems.map(item => {
+        const imgSrc = item.thumbnail_url || (item.image_path ? `${CONFIG.SUPABASE_URL}/storage/v1/object/public/captures/${item.image_path}` : '');
+        const emoji = CATEGORY_EMOJI[item.category] || '';
+        return `<div class="library-card" onclick="window.open('${item.url || '#'}', '_blank')">
+          ${imgSrc ? `<img class="library-card-img" src="${imgSrc}" alt="" loading="lazy">` : `<div class="library-card-img" style="display:flex;align-items:center;justify-content:center;font-size:28px">${emoji}</div>`}
+          <div class="library-card-body">
+            <div class="library-card-name">${item.name}</div>
+            <div class="library-card-cat">${emoji} ${item.category.replace('_', ' ')}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    librarySearch.addEventListener('input', debounce(loadLibrary, 300));
+
+    // ============ LOAD TASKS ============
+    async function loadTasks() {
+      try {
+        let query = `${CONFIG.SUPABASE_URL}/rest/v1/items?type=eq.TASK&status=eq.ACTIVE&order=created_at.desc&limit=50`;
+        if (activeTaskFilter !== 'ALL') {
+          query += `&tier=eq.${activeTaskFilter}`;
+        }
+
+        const response = await fetch(query, {
+          headers: {
+            'apikey': CONFIG.SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+          },
+        });
+        taskItems = await response.json();
+        renderTasks();
+      } catch (err) {
+        console.error('Task load error:', err);
+      }
+    }
+
+    function renderTaskFilters() {
+      const filters = ['ALL', ...TIERS];
+      const tierLabels = { ALL: 'All', SURVIVAL: 'Survival', CORE_WELLBEING: 'Core', GROWTH: 'Growth' };
+      taskFilters.innerHTML = filters.map(f =>
+        `<button class="filter-chip ${activeTaskFilter === f ? 'active' : ''}" onclick="setTaskFilter('${f}')">${tierLabels[f] || f}</button>`
+      ).join('');
+    }
+
+    function setTaskFilter(filter) {
+      activeTaskFilter = filter;
+      renderTaskFilters();
+      loadTasks();
+    }
+
+    function renderTasks() {
+      if (taskItems.length === 0) {
+        taskList.innerHTML = `<div class="empty-state">
+          <div class="empty-state-icon">&#x2705;</div>
+          <div class="empty-state-text">No active tasks${activeTaskFilter !== 'ALL' ? ' at this tier' : ''}.</div>
+        </div>`;
+        return;
+      }
+
+      taskList.innerHTML = taskItems.map(item => {
+        const emoji = CATEGORY_EMOJI[item.category] || '';
+        return `<div class="receipt">
+          <div class="receipt-header">
+            <span class="receipt-name">${item.name}</span>
+            ${item.time_estimate ? `<span class="receipt-confidence">${item.time_estimate}min</span>` : ''}
+          </div>
+          <div class="receipt-badges">
+            ${item.tier ? `<span class="badge badge-tier-${item.tier}">${item.tier.replace('_', ' ')}</span>` : ''}
+            <span class="badge badge-category">${emoji} ${item.category.replace('_', ' ')}</span>
+            ${item.frequency !== 'ONE_TIME' ? `<span class="badge" style="background:var(--border)">${item.frequency}</span>` : ''}
+          </div>
+          ${item.notes ? `<div class="receipt-notes">${item.notes}</div>` : ''}
+          <div class="receipt-actions">
+            <button class="receipt-action-btn" onclick="completeItem('${item.id}')" style="color:var(--success);border-color:var(--success)">Done</button>
+            <button class="receipt-action-btn" onclick="parkItem('${item.id}')">Park</button>
+            <button class="receipt-action-btn" onclick="openFixModal('${item.id}', 'category')">Fix</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    async function parkItem(itemId) {
+      try {
+        const response = await fetch(`${EDGE_FN_URL}/complete-item`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({ item_id: itemId, new_status: 'PARKED' }),
+        });
+        const data = await response.json();
+        if (data.status === 'updated') {
+          taskItems = taskItems.filter(t => t.id !== itemId);
+          renderTasks();
+          showToast('Parked for later');
+        }
+      } catch (err) {
+        showToast('Failed to park');
+      }
+    }
+
+    // ============ UTILITIES ============
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    function debounce(fn, ms) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    // ============ INIT ============
+    function init() {
+      renderLibraryFilters();
+      renderTaskFilters();
+
+      if (!CONFIG.CAPTURE_API_KEY) {
+        statusEl.textContent = 'Set API key in config';
+        statusEl.style.color = 'var(--warning)';
+      } else {
+        statusEl.textContent = 'Ready';
+        statusEl.style.color = 'var(--success)';
+      }
+    }
+
+    init();
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
