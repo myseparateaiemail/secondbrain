@@ -103,8 +103,8 @@
       right: 0;
       background: var(--surface);
       border-top: 1px solid var(--border);
-      padding: 12px 16px;
-      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      padding: 12px 16px 12px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
     }
     .capture-input-row {
       display: flex;
@@ -170,6 +170,57 @@
     }
     .image-btn:hover { border-color: var(--accent); color: var(--accent); }
     #image-input { display: none; }
+
+    /* ============ MIC BUTTON ============ */
+    .mic-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-dim);
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .mic-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .mic-btn.recording {
+      background: #ef5350;
+      border-color: #ef5350;
+      color: white;
+      animation: mic-pulse 1.5s infinite;
+    }
+    .mic-btn.processing {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: white;
+      animation: pulse 1s infinite;
+    }
+    .recording-timer {
+      display: none;
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: #ef5350;
+      font-weight: 600;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .mic-btn.recording .recording-timer {
+      display: block;
+    }
+
+    @keyframes mic-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(239, 83, 80, 0); }
+    }
 
     @keyframes pulse {
       0%, 100% { opacity: 1; }
@@ -569,6 +620,7 @@
     </div>
     <div class="capture-input-row">
       <button class="image-btn" id="image-btn" title="Attach screenshot">&#x1f4f7;</button>
+      <button class="mic-btn" id="mic-btn" title="Voice capture">&#x1f3a4;<span class="recording-timer" id="recording-timer">0:00</span></button>
       <textarea class="capture-input" id="capture-input" placeholder="Speak, type, or paste a link..." rows="1"></textarea>
       <input type="file" id="image-input" accept="image/png,image/jpeg,image/gif,image/webp">
       <button class="capture-btn" id="capture-btn" title="Send">&#x2191;</button>
@@ -678,6 +730,152 @@
       imageInput.value = '';
       imagePreview.classList.remove('active');
     });
+
+    // ============ VOICE RECORDING ============
+    const micBtn = document.getElementById('mic-btn');
+    const recordingTimer = document.getElementById('recording-timer');
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordingStartTime = null;
+    let recordingInterval = null;
+    let isRecording = false;
+
+    micBtn.addEventListener('click', async () => {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        await startRecording();
+      }
+    });
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 16000,
+          }
+        });
+
+        // Detect best supported MIME type (iOS Safari = mp4, Chrome/others = webm)
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm')
+            ? 'audio/webm'
+            : MediaRecorder.isTypeSupported('audio/mp4')
+              ? 'audio/mp4'
+              : '';
+
+        const options = mimeType ? { mimeType } : {};
+        mediaRecorder = new MediaRecorder(stream, options);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          // Stop all tracks to release mic
+          stream.getTracks().forEach(t => t.stop());
+          clearInterval(recordingInterval);
+
+          if (audioChunks.length === 0) {
+            showToast('No audio recorded');
+            resetMicUI();
+            return;
+          }
+
+          const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          console.log(`Recording complete: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
+
+          if (audioBlob.size < 1000) {
+            showToast('Recording too short — try again');
+            resetMicUI();
+            return;
+          }
+
+          // Show processing state
+          micBtn.classList.remove('recording');
+          micBtn.classList.add('processing');
+          captureInput.value = 'Transcribing and synthesizing...';
+          captureInput.style.height = 'auto';
+          captureInput.style.height = Math.min(captureInput.scrollHeight, 120) + 'px';
+
+          try {
+            const formData = new FormData();
+            // Set correct extension for Whisper
+            const ext = audioBlob.type.includes('mp4') ? 'mp4'
+                      : audioBlob.type.includes('ogg') ? 'ogg'
+                      : 'webm';
+            formData.append('audio', audioBlob, `recording.${ext}`);
+
+            const response = await fetch(`${EDGE_FN_URL}/transcribe-voice`, {
+              method: 'POST',
+              headers: { 'x-api-key': CONFIG.CAPTURE_API_KEY },
+              body: formData,
+            });
+
+            const data = await response.json();
+
+            if (data.status === 'transcribed') {
+              // Put synthesized text in textarea for review
+              captureInput.value = data.synthesized;
+              captureInput.style.height = 'auto';
+              captureInput.style.height = Math.min(captureInput.scrollHeight, 120) + 'px';
+              captureInput.focus();
+              showToast('Voice captured — review and hit Send');
+            } else {
+              captureInput.value = '';
+              showToast(`Voice error: ${data.error || 'Unknown error'}`);
+              console.error('Transcribe error:', data);
+            }
+          } catch (err) {
+            captureInput.value = '';
+            showToast('Voice transcription failed. Check connection.');
+            console.error('Transcribe fetch error:', err);
+          } finally {
+            resetMicUI();
+          }
+        };
+
+        // Start recording
+        mediaRecorder.start(1000); // collect in 1s chunks
+        isRecording = true;
+        micBtn.classList.add('recording');
+        recordingStartTime = Date.now();
+
+        // Update timer display
+        recordingTimer.textContent = '0:00';
+        recordingInterval = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+          const mins = Math.floor(elapsed / 60);
+          const secs = elapsed % 60;
+          recordingTimer.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+        }, 1000);
+
+      } catch (err) {
+        if (err.name === 'NotAllowedError') {
+          showToast('Microphone access denied — check browser settings');
+        } else {
+          showToast('Could not start recording');
+          console.error('MediaRecorder error:', err);
+        }
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      isRecording = false;
+    }
+
+    function resetMicUI() {
+      micBtn.classList.remove('recording', 'processing');
+      recordingTimer.textContent = '0:00';
+      isRecording = false;
+    }
 
     // ============ CAPTURE (SEND) ============
     captureBtn.addEventListener('click', sendCapture);
